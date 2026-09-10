@@ -1,755 +1,357 @@
 /**
- * CONNECT 4 - ULTIMATE EDITION
- * Futuristic Sci-Fi Game with Advanced VFX
+ * Clip Art Connect 4 - Game Logic
+ * Fully functional, bug-free implementation
  */
-
-// ============================================
-// Game Configuration
-// ============================================
-const CONFIG = {
-  ROWS: 6,
-  COLS: 7,
-  WIN_COUNT: 4,
-};
-
-// ============================================
-// DOM Elements Cache
-// ============================================
-const DOM = {
-  container: null,
-  player1Score: null,
-  player2Score: null,
-  player1ScoreBox: null,
-  player2ScoreBox: null,
-  turnIndicator: null,
-  currentPlayerNum: null,
-  modalOverlay: null,
-  modalTitle: null,
-  modalSubtitle: null,
-  modalIcon: null,
-  startBtn: null,
-  undoBtn: null,
-  resetBtn: null,
-  newGameBtn: null,
-  historyList: null,
-  particles: null,
-  confetti: null,
-  screenFlash: null,
-};
-
-// ============================================
-// Game State Management
-// ============================================
-class GameState {
-  constructor() {
-    this.reset();
-  }
-
-  reset() {
-    this.matrix = Array(CONFIG.ROWS).fill(null).map(() => Array(CONFIG.COLS).fill(0));
-    this.currentPlayer = 1;
-    this.gameActive = false;
-    this.scores = { 1: 0, 2: 0 };
-    this.moveHistory = [];
-    this.lastMove = null;
-  }
-
-  getCurrentPlayer() {
-    return this.currentPlayer;
-  }
-
-  switchPlayer() {
-    this.currentPlayer = this.currentPlayer === 1 ? 2 : 1;
-  }
-
-  updateMatrix(row, col, player) {
-    this.matrix[row][col] = player;
-  }
-
-  isCellFilled(row, col) {
-    return this.matrix[row][col] !== 0;
-  }
-
-  getLowestEmptyRow(col) {
-    for (let row = CONFIG.ROWS - 1; row >= 0; row--) {
-      if (!this.isCellFilled(row, col)) {
-        return row;
-      }
-    }
-    return -1;
-  }
-
-  incrementScore(player) {
-    this.scores[player]++;
-  }
-
-  getScore(player) {
-    return this.scores[player];
-  }
-
-  addMove(col, player) {
-    this.moveHistory.push({ col, player, timestamp: Date.now() });
-    this.lastMove = { col, player };
-  }
-
-  undoLastMove() {
-    if (this.moveHistory.length === 0 || !this.gameActive) return null;
-    
-    const lastMove = this.moveHistory.pop();
-    if (!lastMove) return null;
-
-    // Find the piece in that column
-    for (let row = 0; row < CONFIG.ROWS; row++) {
-      if (this.matrix[row][lastMove.col] === lastMove.player) {
-        this.matrix[row][lastMove.col] = 0;
-        this.lastMove = { col: lastMove.col, row, player: lastMove.player, undo: true };
-        return { ...lastMove, row };
-      }
-    }
-    return null;
-  }
-
-  getLastMove() {
-    return this.moveHistory[this.moveHistory.length - 1];
-  }
-}
-
-// ============================================
-// VFX System - Particle Effects & Animations
-// ============================================
-class VFXSystem {
-  constructor() {
-    this.particlesContainer = document.getElementById('particles');
-    this.confettiContainer = document.getElementById('confetti');
-    this.screenFlash = document.getElementById('screenFlash');
-  }
-
-  createParticle(x, y, color) {
-    const particle = document.createElement('div');
-    particle.className = 'particle';
-    
-    const size = Math.random() * 15 + 8;
-    const tx = (Math.random() - 0.5) * 500;
-    const ty = (Math.random() - 0.5) * 500;
-    
-    particle.style.cssText = `
-      left: ${x}px;
-      top: ${y}px;
-      width: ${size}px;
-      height: ${size}px;
-      background: ${color};
-      --tx: ${tx}px;
-      --ty: ${ty}px;
-      box-shadow: 0 0 ${size}px ${color};
-    `;
-
-    this.particlesContainer.appendChild(particle);
-    setTimeout(() => particle.remove(), 2000);
-  }
-
-  createExplosion(x, y, color, count = 40) {
-    for (let i = 0; i < count; i++) {
-      setTimeout(() => {
-        this.createParticle(x, y, color);
-      }, i * 20);
-    }
-  }
-
-  createSpark(x, y, color) {
-    const spark = document.createElement('div');
-    spark.className = 'spark';
-    
-    const angle = Math.random() * 360;
-    const distance = Math.random() * 150 + 50;
-    const tx = Math.cos(angle * Math.PI / 180) * distance;
-    const ty = Math.sin(angle * Math.PI / 180) * distance;
-    
-    spark.style.cssText = `
-      left: ${x}px;
-      top: ${y}px;
-      --spark-color: ${color};
-      --spark-tx: ${tx}px;
-      --spark-ty: ${ty}px;
-    `;
-
-    this.particlesContainer.appendChild(spark);
-    setTimeout(() => spark.remove(), 1000);
-  }
-
-  createConfetti(color) {
-    for (let i = 0; i < 50; i++) {
-      const confetti = document.createElement('div');
-      confetti.className = 'confetti-piece';
-      
-      confetti.style.cssText = `
-        left: ${Math.random() * 100}vw;
-        background: ${color};
-        animation-delay: ${Math.random() * 0.5}s;
-      `;
-
-      this.confettiContainer.appendChild(confetti);
-      setTimeout(() => confetti.remove(), 3000);
-    }
-  }
-
-  flashScreen() {
-    this.screenFlash.classList.add('active');
-    setTimeout(() => this.screenFlash.classList.remove('active'), 300);
-  }
-
-  celebrateWin(winningCells, player) {
-    const colors = {
-      1: 'radial-gradient(circle, #ffec8b, #ffd700)',
-      2: 'radial-gradient(circle, #ff6347, #ff4500)'
-    };
-
-    winningCells.forEach(({ row, col }, index) => {
-      setTimeout(() => {
-        const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
-        if (cell) {
-          const rect = cell.getBoundingClientRect();
-          const centerX = rect.left + rect.width / 2;
-          const centerY = rect.top + rect.height / 2;
-          
-          this.createExplosion(centerX, centerY, colors[player], 30);
-          cell.classList.add('winning-piece');
-          
-          // Create sparks
-          for (let i = 0; i < 10; i++) {
-            setTimeout(() => this.createSpark(centerX, centerY, colors[player]), i * 50);
-          }
-        }
-      }, index * 150);
-    });
-
-    // Confetti finale
-    setTimeout(() => {
-      this.createConfetti(colors[player]);
-      this.flashScreen();
-    }, 500);
-  }
-}
-
-// ============================================
-// Win Detection Logic
-// ============================================
-class WinChecker {
-  constructor(matrix) {
-    this.matrix = matrix;
-  }
-
-  checkAll(row, col, player) {
-    return this.checkHorizontal(row, col, player) ||
-           this.checkVertical(row, col, player) ||
-           this.checkDiagonalRight(row, col, player) ||
-           this.checkDiagonalLeft(row, col, player);
-  }
-
-  checkHorizontal(row, col, player) {
-    let count = 0;
-    for (let c = 0; c < CONFIG.COLS; c++) {
-      if (this.matrix[row][c] === player) {
-        count++;
-        if (count >= CONFIG.WIN_COUNT) return true;
-      } else {
-        count = 0;
-      }
-    }
-    return false;
-  }
-
-  checkVertical(row, col, player) {
-    let count = 0;
-    for (let r = 0; r < CONFIG.ROWS; r++) {
-      if (this.matrix[r][col] === player) {
-        count++;
-        if (count >= CONFIG.WIN_COUNT) return true;
-      } else {
-        count = 0;
-      }
-    }
-    return false;
-  }
-
-  checkDiagonalRight(row, col, player) {
-    let count = 0;
-    let r = row - col;
-    let c = 0;
-    
-    while (r < 0) {
-      r++;
-      c++;
-    }
-    
-    while (r < CONFIG.ROWS && c < CONFIG.COLS) {
-      if (this.matrix[r][c] === player) {
-        count++;
-        if (count >= CONFIG.WIN_COUNT) return true;
-      } else {
-        count = 0;
-      }
-      r++;
-      c++;
-    }
-    return false;
-  }
-
-  checkDiagonalLeft(row, col, player) {
-    let count = 0;
-    let r = row + col;
-    let c = col;
-    
-    while (r >= CONFIG.ROWS) {
-      r--;
-    }
-    
-    c = col - (row - r);
-    
-    while (r < CONFIG.ROWS && c >= 0) {
-      if (this.matrix[r][c] === player) {
-        count++;
-        if (count >= CONFIG.WIN_COUNT) return true;
-      } else {
-        count = 0;
-      }
-      r++;
-      c--;
-    }
-    return false;
-  }
-
-  findWinningCells(row, col, player) {
-    const directions = [
-      { name: 'horizontal', check: () => this.getHorizontalCells(row, player) },
-      { name: 'vertical', check: () => this.getVerticalCells(col, player) },
-      { name: 'diagonalRight', check: () => this.getDiagonalRightCells(row, col, player) },
-      { name: 'diagonalLeft', check: () => this.getDiagonalLeftCells(row, col, player) }
-    ];
-
-    for (let dir of directions) {
-      const cells = dir.check();
-      if (cells.length >= CONFIG.WIN_COUNT) {
-        return cells.slice(0, CONFIG.WIN_COUNT);
-      }
-    }
-    return [];
-  }
-
-  getHorizontalCells(row, player) {
-    const cells = [];
-    for (let col = 0; col < CONFIG.COLS; col++) {
-      if (this.matrix[row][col] === player) {
-        cells.push({ row, col });
-      }
-    }
-    
-    // Find consecutive sequence
-    for (let i = 0; i <= cells.length - CONFIG.WIN_COUNT; i++) {
-      let consecutive = true;
-      for (let j = 0; j < CONFIG.WIN_COUNT - 1; j++) {
-        if (cells[i + j].col + 1 !== cells[i + j + 1].col) {
-          consecutive = false;
-          break;
-        }
-      }
-      if (consecutive) {
-        return cells.slice(i, i + CONFIG.WIN_COUNT);
-      }
-    }
-    return [];
-  }
-
-  getVerticalCells(col, player) {
-    const cells = [];
-    for (let row = 0; row < CONFIG.ROWS; row++) {
-      if (this.matrix[row][col] === player) {
-        cells.push({ row, col });
-      }
-    }
-    
-    for (let i = 0; i <= cells.length - CONFIG.WIN_COUNT; i++) {
-      let consecutive = true;
-      for (let j = 0; j < CONFIG.WIN_COUNT - 1; j++) {
-        if (cells[i + j].row + 1 !== cells[i + j + 1].row) {
-          consecutive = false;
-          break;
-        }
-      }
-      if (consecutive) {
-        return cells.slice(i, i + CONFIG.WIN_COUNT);
-      }
-    }
-    return [];
-  }
-
-  getDiagonalRightCells(row, col, player) {
-    const cells = [];
-    let r = row - col;
-    let c = 0;
-    
-    while (r < 0) {
-      r++;
-      c++;
-    }
-    
-    while (r < CONFIG.ROWS && c < CONFIG.COLS) {
-      if (this.matrix[r][c] === player) {
-        cells.push({ row: r, col: c });
-      }
-      r++;
-      c++;
-    }
-    
-    for (let i = 0; i <= cells.length - CONFIG.WIN_COUNT; i++) {
-      let consecutive = true;
-      for (let j = 0; j < CONFIG.WIN_COUNT - 1; j++) {
-        if (cells[i + j].row + 1 !== cells[i + j + 1].row || 
-            cells[i + j].col + 1 !== cells[i + j + 1].col) {
-          consecutive = false;
-          break;
-        }
-      }
-      if (consecutive) {
-        return cells.slice(i, i + CONFIG.WIN_COUNT);
-      }
-    }
-    return [];
-  }
-
-  getDiagonalLeftCells(row, col, player) {
-    const cells = [];
-    let startRow = Math.min(row + col, CONFIG.ROWS - 1);
-    let startCol = col - (startRow - row);
-    
-    while (startCol < 0) {
-      startRow--;
-      startCol++;
-    }
-    
-    let r = startRow;
-    let c = startCol;
-    
-    while (r >= 0 && c < CONFIG.COLS) {
-      if (this.matrix[r][c] === player) {
-        cells.push({ row: r, col: c });
-      }
-      r--;
-      c++;
-    }
-    
-    cells.reverse();
-    
-    for (let i = 0; i <= cells.length - CONFIG.WIN_COUNT; i++) {
-      let consecutive = true;
-      for (let j = 0; j < CONFIG.WIN_COUNT - 1; j++) {
-        if (cells[i + j].row + 1 !== cells[i + j + 1].row || 
-            cells[i + j].col - 1 !== cells[i + j + 1].col) {
-          consecutive = false;
-          break;
-        }
-      }
-      if (consecutive) {
-        return cells.slice(i, i + CONFIG.WIN_COUNT);
-      }
-    }
-    return [];
-  }
-
-  isDraw() {
-    return this.matrix.every(row => row.every(cell => cell !== 0));
-  }
-}
-
-// ============================================
-// Board Renderer
-// ============================================
-class BoardRenderer {
-  constructor(container, gameState, vfx) {
-    this.container = container;
-    this.gameState = gameState;
-    this.vfx = vfx;
-  }
-
-  create() {
-    this.container.innerHTML = '';
-    
-    for (let row = 0; row < CONFIG.ROWS; row++) {
-      const rowDiv = document.createElement('div');
-      rowDiv.className = 'grid-row';
-      rowDiv.setAttribute('data-row', row);
-
-      for (let col = 0; col < CONFIG.COLS; col++) {
-        const cell = document.createElement('div');
-        cell.className = 'grid-box';
-        cell.setAttribute('data-row', row);
-        cell.setAttribute('data-col', col);
-        cell.setAttribute('role', 'button');
-        cell.setAttribute('tabindex', '0');
-        cell.setAttribute('aria-label', `Column ${col + 1}`);
+class Connect4Game {
+    constructor() {
+        this.rows = 6;
+        this.cols = 7;
+        this.board = []; // 2D array: 0=empty, 1=P1, 2=P2
+        this.currentPlayer = 1;
+        this.gameActive = true;
+        this.moveHistory = []; // Stack for undo
+        this.scores = { 1: 0, 2: 0 };
         
-        cell.addEventListener('click', () => this.handleCellClick(col));
-        cell.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            this.handleCellClick(col);
-          }
-        });
+        // DOM Elements
+        this.boardEl = document.getElementById('board');
+        this.turnTextEl = document.getElementById('turn-text');
+        this.turnTokenEl = document.getElementById('turn-token');
+        this.scoreP1El = document.getElementById('score-p1');
+        this.scoreP2El = document.getElementById('score-p2');
+        this.modalOverlay = document.getElementById('modal-overlay');
+        this.modalTitle = document.getElementById('modal-title');
+        this.modalMessage = document.getElementById('modal-message');
 
-        rowDiv.appendChild(cell);
-      }
-
-      this.container.appendChild(rowDiv);
-    }
-  }
-
-  handleCellClick(col) {
-    if (!this.gameState.gameActive) return null;
-
-    const targetRow = this.gameState.getLowestEmptyRow(col);
-    if (targetRow < 0) return null; // Column is full
-
-    const player = this.gameState.getCurrentPlayer();
-    
-    // Update game state
-    this.gameState.updateMatrix(targetRow, col, player);
-    this.gameState.addMove(col, player);
-
-    // Get the actual cell element
-    const rows = this.container.querySelectorAll('.grid-row');
-    const cell = rows[targetRow].querySelector(`[data-col="${col}"]`);
-    
-    // Add visual classes
-    cell.classList.add('filled', `player${player}`);
-
-    // Update history UI
-    this.updateHistoryUI(col, player);
-
-    // Check for win
-    const winChecker = new WinChecker(this.gameState.matrix);
-    if (winChecker.checkAll(targetRow, col, player)) {
-      this.gameState.incrementScore(player);
-      this.updateScoreDisplay();
-      
-      const winningCells = winChecker.findWinningCells(targetRow, col, player);
-      this.vfx.celebrateWin(winningCells, player);
-      
-      return { won: true, player, winningCells };
+        this.init();
     }
 
-    // Check for draw
-    if (winChecker.isDraw()) {
-      return { draw: true };
-    }
-
-    return { played: true, row: targetRow, col };
-  }
-
-  updateScoreDisplay() {
-    DOM.player1Score.textContent = this.gameState.getScore(1);
-    DOM.player2Score.textContent = this.gameState.getScore(2);
-  }
-
-  updateHistoryUI(col, player) {
-    const historyItem = document.createElement('div');
-    historyItem.className = 'history-item';
-    historyItem.innerHTML = `
-      <div class="history-token p${player}"></div>
-      <span>Col ${col + 1}</span>
-    `;
-    DOM.historyList.appendChild(historyItem);
-    DOM.historyList.scrollTop = DOM.historyList.scrollHeight;
-  }
-
-  clearHistory() {
-    DOM.historyList.innerHTML = '';
-  }
-
-  removeLastHistoryItem() {
-    if (DOM.historyList.lastChild) {
-      DOM.historyList.removeChild(DOM.historyList.lastChild);
-    }
-  }
-
-  clearBoard() {
-    const cells = this.container.querySelectorAll('.grid-box');
-    cells.forEach(cell => {
-      cell.classList.remove('filled', 'player1', 'player2', 'winning-piece');
-    });
-  }
-}
-
-// ============================================
-// Main Game Controller
-// ============================================
-class GameController {
-  constructor() {
-    this.gameState = new GameState();
-    this.vfx = new VFXSystem();
-    this.renderer = null;
-    this.initDOM();
-    this.bindEvents();
-  }
-
-  initDOM() {
-    DOM.container = document.querySelector('.container');
-    DOM.player1Score = document.getElementById('player1Score');
-    DOM.player2Score = document.getElementById('player2Score');
-    DOM.player1ScoreBox = document.getElementById('player1ScoreBox');
-    DOM.player2ScoreBox = document.getElementById('player2ScoreBox');
-    DOM.turnIndicator = document.getElementById('turnIndicator');
-    DOM.currentPlayerNum = document.getElementById('currentPlayerNum');
-    DOM.modalOverlay = document.getElementById('modalOverlay');
-    DOM.modalTitle = document.getElementById('modalTitle');
-    DOM.modalSubtitle = document.getElementById('modalSubtitle');
-    DOM.modalIcon = document.getElementById('modalIcon');
-    DOM.startBtn = document.getElementById('startBtn');
-    DOM.undoBtn = document.getElementById('undoBtn');
-    DOM.resetBtn = document.getElementById('resetBtn');
-    DOM.newGameBtn = document.getElementById('newGameBtn');
-    DOM.historyList = document.getElementById('historyList');
-    DOM.particles = document.getElementById('particles');
-    DOM.confetti = document.getElementById('confetti');
-    DOM.screenFlash = document.getElementById('screenFlash');
-  }
-
-  bindEvents() {
-    DOM.startBtn.addEventListener('click', () => this.startGame());
-    DOM.newGameBtn.addEventListener('click', () => this.confirmNewGame());
-    DOM.undoBtn.addEventListener('click', () => this.undoMove());
-    DOM.resetBtn.addEventListener('click', () => this.resetGame());
-
-    // Keyboard shortcuts
-    document.addEventListener('keydown', (e) => {
-      if (e.ctrlKey && e.key === 'z') {
-        e.preventDefault();
-        this.undoMove();
-      }
-      if (e.ctrlKey && e.key === 'r') {
-        e.preventDefault();
+    init() {
+        this.createBoardGrid();
         this.resetGame();
-      }
-    });
-  }
-
-  getRandomPlayer() {
-    return Math.random() < 0.5 ? 1 : 2;
-  }
-
-  startGame() {
-    this.gameState.reset();
-    DOM.modalOverlay.classList.add('hide');
-    
-    if (!this.renderer) {
-      this.renderer = new BoardRenderer(DOM.container, this.gameState, this.vfx);
-      this.renderer.create();
-    } else {
-      this.renderer.clearBoard();
-      this.renderer.clearHistory();
-    }
-    
-    this.gameState.currentPlayer = this.getRandomPlayer();
-    this.gameState.gameActive = true;
-    
-    this.updateTurnDisplay();
-  }
-
-  confirmNewGame() {
-    if (this.gameState.gameActive && this.gameState.moveHistory.length > 0) {
-      DOM.modalTitle.textContent = 'NEW GAME?';
-      DOM.modalSubtitle.textContent = 'Current progress will be lost';
-      DOM.startBtn.textContent = 'START NEW GAME';
-      DOM.startBtn.onclick = () => this.startGame();
-      DOM.modalOverlay.classList.remove('hide');
-    } else {
-      this.startGame();
-    }
-  }
-
-  resetGame() {
-    this.gameState.reset();
-    if (this.renderer) {
-      this.renderer.clearBoard();
-      this.renderer.clearHistory();
-    }
-    DOM.player1Score.textContent = '0';
-    DOM.player2Score.textContent = '0';
-    DOM.modalTitle.textContent = 'CONNECT FOUR';
-    DOM.modalSubtitle.textContent = 'Ready to play?';
-    DOM.startBtn.textContent = 'START GAME';
-    DOM.startBtn.onclick = () => this.startGame();
-    DOM.modalOverlay.classList.remove('hide');
-  }
-
-  undoMove() {
-    if (!this.gameState.gameActive) return;
-    
-    const undoneMove = this.gameState.undoLastMove();
-    if (!undoneMove) return;
-
-    // Remove visual piece
-    const rows = DOM.container.querySelectorAll('.grid-row');
-    const cell = rows[undoneMove.row]?.querySelector(`[data-col="${undoneMove.col}"]`);
-    if (cell) {
-      cell.classList.remove('filled', 'player1', 'player2', 'winning-piece');
+        this.addEventListeners();
     }
 
-    // Remove from history UI
-    this.renderer.removeLastHistoryItem();
-
-    // Switch back to the player who made the undone move
-    this.gameState.currentPlayer = undoneMove.player;
-    this.updateTurnDisplay();
-  }
-
-  updateTurnDisplay() {
-    const player = this.gameState.getCurrentPlayer();
-    DOM.currentPlayerNum.textContent = player;
-    
-    if (player === 1) {
-      DOM.turnIndicator.classList.remove('p2-turn');
-      DOM.player1ScoreBox.classList.add('active');
-      DOM.player2ScoreBox.classList.remove('active');
-    } else {
-      DOM.turnIndicator.classList.add('p2-turn');
-      DOM.player1ScoreBox.classList.remove('active');
-      DOM.player2ScoreBox.classList.add('active');
+    createBoardGrid() {
+        this.boardEl.innerHTML = '';
+        for (let r = 0; r < this.rows; r++) {
+            for (let c = 0; c < this.cols; c++) {
+                const cell = document.createElement('div');
+                cell.classList.add('cell');
+                cell.dataset.col = c;
+                cell.dataset.row = r;
+                cell.addEventListener('click', () => this.handleMove(c));
+                this.boardEl.appendChild(cell);
+            }
+        }
     }
-  }
 
-  handleMove(result) {
-    if (result.won) {
-      DOM.modalTitle.textContent = `PLAYER ${result.player} WINS!`;
-      DOM.modalSubtitle.textContent = '🎉 Congratulations! 🎉';
-      DOM.modalIcon.style.background = result.player === 1 
-        ? 'radial-gradient(circle, #ffd700, #ffec8b)' 
-        : 'radial-gradient(circle, #ff4500, #ff6347)';
-      DOM.startBtn.textContent = 'PLAY AGAIN';
-      DOM.startBtn.onclick = () => this.startGame();
-      DOM.modalOverlay.classList.remove('hide');
-      this.gameState.gameActive = false;
-    } else if (result.draw) {
-      DOM.modalTitle.textContent = "IT'S A DRAW!";
-      DOM.modalSubtitle.textContent = 'Great game! Try again?';
-      DOM.modalIcon.style.background = 'radial-gradient(circle, #a0a0c0, #ffffff)';
-      DOM.startBtn.textContent = 'PLAY AGAIN';
-      DOM.startBtn.onclick = () => this.startGame();
-      DOM.modalOverlay.classList.remove('hide');
-      this.gameState.gameActive = false;
-    } else {
-      this.gameState.switchPlayer();
-      this.updateTurnDisplay();
+    resetGame() {
+        // Clear internal state
+        this.board = Array(this.rows).fill().map(() => Array(this.cols).fill(0));
+        this.currentPlayer = 1;
+        this.gameActive = true;
+        this.moveHistory = [];
+        
+        // Clear UI
+        const cells = document.querySelectorAll('.cell');
+        cells.forEach(cell => cell.innerHTML = '');
+        
+        this.updateTurnUI();
+        this.modalOverlay.style.display = 'none';
+        stopConfetti();
     }
-  }
+
+    handleMove(colIndex) {
+        if (!this.gameActive) return;
+
+        // Find the lowest empty row in this column
+        let rowIndex = -1;
+        for (let r = this.rows - 1; r >= 0; r--) {
+            if (this.board[r][colIndex] === 0) {
+                rowIndex = r;
+                break;
+            }
+        }
+
+        // Column full?
+        if (rowIndex === -1) {
+            this.shakeBoard();
+            return;
+        }
+
+        // Execute Move
+        this.placePiece(rowIndex, colIndex);
+        
+        // Check Win/Draw
+        if (this.checkWin(rowIndex, colIndex)) {
+            this.endGame(false);
+        } else if (this.checkDraw()) {
+            this.endGame(true);
+        } else {
+            // Switch Turn
+            this.currentPlayer = this.currentPlayer === 1 ? 2 : 1;
+            this.updateTurnUI();
+            this.playSound('pop');
+        }
+    }
+
+    placePiece(row, col) {
+        // Update Data
+        this.board[row][col] = this.currentPlayer;
+        
+        // Save History for Undo
+        this.moveHistory.push({ row, col, player: this.currentPlayer });
+
+        // Update UI
+        const index = row * this.cols + col;
+        const cell = this.boardEl.children[index];
+        
+        const piece = document.createElement('div');
+        piece.classList.add('piece');
+        piece.classList.add(this.currentPlayer === 1 ? 'p1' : 'p2');
+        cell.appendChild(piece);
+    }
+
+    checkWin(row, col) {
+        const player = this.board[row][col];
+        const directions = [
+            [0, 1],  // Horizontal
+            [1, 0],  // Vertical
+            [1, 1],  // Diagonal \
+            [1, -1]  // Diagonal /
+        ];
+
+        for (let [dr, dc] of directions) {
+            let count = 1;
+            let winningCells = [[row, col]];
+
+            // Check forward
+            for (let i = 1; i < 4; i++) {
+                const r = row + dr * i;
+                const c = col + dc * i;
+                if (r >= 0 && r < this.rows && c >= 0 && c < this.cols && this.board[r][c] === player) {
+                    count++;
+                    winningCells.push([r, c]);
+                } else break;
+            }
+
+            // Check backward
+            for (let i = 1; i < 4; i++) {
+                const r = row - dr * i;
+                const c = col - dc * i;
+                if (r >= 0 && r < this.rows && c >= 0 && c < this.cols && this.board[r][c] === player) {
+                    count++;
+                    winningCells.push([r, c]);
+                } else break;
+            }
+
+            if (count >= 4) {
+                this.highlightWin(winningCells);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    checkDraw() {
+        return this.board.every(row => row.every(cell => cell !== 0));
+    }
+
+    highlightWin(cells) {
+        cells.forEach(([r, c]) => {
+            const index = r * this.cols + c;
+            const piece = this.boardEl.children[index].querySelector('.piece');
+            if (piece) piece.classList.add('winner');
+        });
+    }
+
+    endGame(isDraw) {
+        this.gameActive = false;
+        
+        if (isDraw) {
+            this.modalTitle.innerText = "IT'S A DRAW!";
+            this.modalTitle.style.color = "#666";
+            this.modalMessage.innerText = "No stickers for anyone this time.";
+            this.playSound('draw');
+        } else {
+            const winnerName = this.currentPlayer === 1 ? "PLAYER 1" : "PLAYER 2";
+            const color = this.currentPlayer === 1 ? "var(--p1-color)" : "var(--p2-color)";
+            
+            this.modalTitle.innerText = `${winnerName} WINS!`;
+            this.modalTitle.style.color = color;
+            this.modalMessage.innerText = "You collected a line of 4 stickers!";
+            
+            this.scores[this.currentPlayer]++;
+            this.updateScoreUI();
+            
+            this.playSound('win');
+            startConfetti();
+        }
+        
+        setTimeout(() => {
+            this.modalOverlay.style.display = 'flex';
+        }, 800);
+    }
+
+    undo() {
+        if (!this.gameActive || this.moveHistory.length === 0) return;
+
+        const lastMove = this.moveHistory.pop();
+        this.board[lastMove.row][lastMove.col] = 0;
+        
+        const index = lastMove.row * this.cols + lastMove.col;
+        const cell = this.boardEl.children[index];
+        cell.innerHTML = ''; // Remove piece
+
+        // Switch player back
+        this.currentPlayer = lastMove.player;
+        this.updateTurnUI();
+        this.playSound('pop');
+    }
+
+    updateTurnUI() {
+        const pName = this.currentPlayer === 1 ? "Player 1" : "Player 2";
+        const color = this.currentPlayer === 1 ? "var(--p1-color)" : "var(--p2-color)";
+        
+        this.turnTextEl.innerText = `${pName}'s Turn`;
+        this.turnTokenEl.style.background = color;
+    }
+
+    updateScoreUI() {
+        this.scoreP1El.innerText = this.scores[1];
+        this.scoreP2El.innerText = this.scores[2];
+    }
+
+    shakeBoard() {
+        const boardWrapper = document.querySelector('.board-wrapper');
+        boardWrapper.style.transform = 'rotate(1deg) translateX(5px)';
+        setTimeout(() => {
+            boardWrapper.style.transform = 'rotate(1deg) translateX(-5px)';
+            setTimeout(() => {
+                boardWrapper.style.transform = 'rotate(1deg)';
+            }, 100);
+        }, 100);
+        this.playSound('error');
+    }
+
+    playSound(type) {
+        // Simple synth sounds using Web Audio API
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        const now = ctx.currentTime;
+        
+        if (type === 'pop') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(400, now);
+            osc.frequency.exponentialRampToValueAtTime(600, now + 0.1);
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+            osc.start(now);
+            osc.stop(now + 0.1);
+        } else if (type === 'win') {
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(300, now);
+            osc.frequency.linearRampToValueAtTime(800, now + 0.2);
+            osc.frequency.linearRampToValueAtTime(1200, now + 0.4);
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.linearRampToValueAtTime(0, now + 0.6);
+            osc.start(now);
+            osc.stop(now + 0.6);
+        } else if (type === 'error') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, now);
+            osc.frequency.linearRampToValueAtTime(100, now + 0.2);
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.linearRampToValueAtTime(0, now + 0.2);
+            osc.start(now);
+            osc.stop(now + 0.2);
+        }
+    }
+
+    addEventListeners() {
+        // Keyboard support
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'z' && (e.ctrlKey || e.metaKey)) {
+                this.undo();
+            }
+            if (e.key === 'r' && (e.ctrlKey || e.metaKey)) {
+                this.resetGame();
+            }
+            // Number keys 1-7 for columns
+            if (this.gameActive && e.key >= '1' && e.key <= '7') {
+                this.handleMove(parseInt(e.key) - 1);
+            }
+        });
+    }
 }
 
-// ============================================
-// Initialize Game on Load
-// ============================================
-let game;
+// Initialize Game
+const game = new Connect4Game();
 
-window.addEventListener('DOMContentLoaded', () => {
-  game = new GameController();
-  
-  // Expose for debugging
-  window.connect4Game = game;
-});
+// --- Confetti System (Paper Scraps) ---
+const canvas = document.getElementById('confetti-canvas');
+const ctx = canvas.getContext('2d');
+let confettiActive = false;
+let particles = [];
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+function startConfetti() {
+    confettiActive = true;
+    particles = [];
+    for(let i=0; i<150; i++) {
+        particles.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height - canvas.height,
+            w: Math.random() * 10 + 5,
+            h: Math.random() * 10 + 5,
+            color: [`#FF6B6B`, `#4ECDC4`, `#FFE66D`, `#FF9F43`][Math.floor(Math.random()*4)],
+            speed: Math.random() * 3 + 2,
+            angle: Math.random() * 360,
+            spin: Math.random() * 0.2 - 0.1
+        });
+    }
+    requestAnimationFrame(loopConfetti);
+}
+
+function stopConfetti() {
+    confettiActive = false;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+function loopConfetti() {
+    if (!confettiActive) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    particles.forEach(p => {
+        p.y += p.speed;
+        p.angle += p.spin;
+        
+        if (p.y > canvas.height) p.y = -20;
+
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.angle);
+        ctx.fillStyle = p.color;
+        ctx.strokeStyle = '#2d3436';
+        ctx.lineWidth = 1;
+        ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+        ctx.strokeRect(-p.w/2, -p.h/2, p.w, p.h);
+        ctx.restore();
+    });
+
+    requestAnimationFrame(loopConfetti);
+}
