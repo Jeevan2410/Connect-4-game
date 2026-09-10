@@ -1,31 +1,45 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Connect 4 ball Game</title>
+    <title>Connect 4 - 3D Animated Game</title>
 
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
     <div class="wrapper">
-      <div id="playerTurn">Demo Text</div>
-      <div class="container"></div>
+      <h1 class="game-title">Connect 4</h1>
+      <div id="playerTurn" aria-live="polite"></div>
+      <div class="container" role="grid" aria-label="Connect 4 Game Board"></div>
       <div id="information">
         <div class="player-wrappers">
-          Player 1
-          <div class="player1"></div>
+          <span class="player-label">Player 1</span>
+          <div class="player1 player-indicator"></div>
+          <span class="score-display">Score: <span id="player1Score">0</span></span>
         </div>
         <div class="player-wrappers">
-          Player 2
-          <div class="player2"></div>
+          <span class="player-label">Player 2</span>
+          <div class="player2 player-indicator"></div>
+          <span class="score-display">Score: <span id="player2Score">0</span></span>
         </div>
       </div>
     </div>
+    
     <div class="startScreen">
-      <div id="message"></div>
-      <button id="start">Start Game</button>
+      <div class="modal-content">
+        <h2 id="message"></h2>
+        <button id="start" aria-label="Start new game">
+          <span class="btn-text">Start Game</span>
+          <span class="btn-glow"></span>
+        </button>
+      </div>
     </div>
+
+    <!-- Particle container for VFX -->
+    <div id="particles"></div>
+    
     <script src="script.js"></script>
   </body>
 </html>
