@@ -1,6 +1,6 @@
 /**
- * Clip Art Connect 4 - Game Logic
- * Fully functional, bug-free implementation
+ * Connect 4 - 3D Clip Art Edition
+ * Fully functional with enhanced VFX and bug fixes
  */
 class Connect4Game {
     constructor() {
@@ -14,6 +14,7 @@ class Connect4Game {
         
         // DOM Elements
         this.boardEl = document.getElementById('board');
+        this.columnNumbersEl = document.getElementById('column-numbers');
         this.turnTextEl = document.getElementById('turn-text');
         this.turnTokenEl = document.getElementById('turn-token');
         this.scoreP1El = document.getElementById('score-p1');
@@ -26,9 +27,20 @@ class Connect4Game {
     }
 
     init() {
+        this.createColumnNumbers();
         this.createBoardGrid();
         this.resetGame();
         this.addEventListeners();
+    }
+
+    createColumnNumbers() {
+        this.columnNumbersEl.innerHTML = '';
+        for (let c = 0; c < this.cols; c++) {
+            const colNum = document.createElement('div');
+            colNum.classList.add('col-num');
+            colNum.textContent = c + 1;
+            this.columnNumbersEl.appendChild(colNum);
+        }
     }
 
     createBoardGrid() {
@@ -40,9 +52,28 @@ class Connect4Game {
                 cell.dataset.col = c;
                 cell.dataset.row = r;
                 cell.addEventListener('click', () => this.handleMove(c));
+                cell.addEventListener('mouseenter', () => this.highlightColumn(c));
+                cell.addEventListener('mouseleave', () => this.unhighlightColumn());
                 this.boardEl.appendChild(cell);
             }
         }
+    }
+
+    highlightColumn(colIndex) {
+        if (!this.gameActive) return;
+        const cells = document.querySelectorAll('.cell');
+        cells.forEach(cell => {
+            if (parseInt(cell.dataset.col) === colIndex) {
+                cell.classList.add('column-hover');
+            }
+        });
+    }
+
+    unhighlightColumn() {
+        const cells = document.querySelectorAll('.cell');
+        cells.forEach(cell => {
+            cell.classList.remove('column-hover');
+        });
     }
 
     resetGame() {
@@ -58,7 +89,7 @@ class Connect4Game {
         
         this.updateTurnUI();
         this.modalOverlay.style.display = 'none';
-        stopConfetti();
+        stopParticles();
     }
 
     handleMove(colIndex) {
@@ -92,6 +123,7 @@ class Connect4Game {
             this.currentPlayer = this.currentPlayer === 1 ? 2 : 1;
             this.updateTurnUI();
             this.playSound('pop');
+            this.createSparkEffect(colIndex);
         }
     }
 
@@ -110,6 +142,9 @@ class Connect4Game {
         piece.classList.add('piece');
         piece.classList.add(this.currentPlayer === 1 ? 'p1' : 'p2');
         cell.appendChild(piece);
+        
+        // Create drop particle effect
+        this.createDropParticles(col);
     }
 
     checkWin(row, col) {
@@ -171,21 +206,21 @@ class Connect4Game {
         if (isDraw) {
             this.modalTitle.innerText = "IT'S A DRAW!";
             this.modalTitle.style.color = "#666";
-            this.modalMessage.innerText = "No stickers for anyone this time.";
+            this.modalMessage.innerText = "No winner this time. Try again!";
             this.playSound('draw');
         } else {
             const winnerName = this.currentPlayer === 1 ? "PLAYER 1" : "PLAYER 2";
-            const color = this.currentPlayer === 1 ? "var(--p1-color)" : "var(--p2-color)";
+            const color = this.currentPlayer === 1 ? "#FFE66D" : "#FF9F43";
             
             this.modalTitle.innerText = `${winnerName} WINS!`;
             this.modalTitle.style.color = color;
-            this.modalMessage.innerText = "You collected a line of 4 stickers!";
+            this.modalMessage.innerText = "Congratulations on your victory!";
             
             this.scores[this.currentPlayer]++;
             this.updateScoreUI();
             
             this.playSound('win');
-            startConfetti();
+            startCelebrationParticles();
         }
         
         setTimeout(() => {
@@ -211,10 +246,12 @@ class Connect4Game {
 
     updateTurnUI() {
         const pName = this.currentPlayer === 1 ? "Player 1" : "Player 2";
-        const color = this.currentPlayer === 1 ? "var(--p1-color)" : "var(--p2-color)";
+        const gradient = this.currentPlayer === 1 
+            ? "radial-gradient(circle at 30% 30%, #fff5cc, var(--p1-color))"
+            : "radial-gradient(circle at 30% 30%, #ffe0cc, var(--p2-color))";
         
         this.turnTextEl.innerText = `${pName}'s Turn`;
-        this.turnTokenEl.style.background = color;
+        this.turnTokenEl.style.background = gradient;
     }
 
     updateScoreUI() {
@@ -224,14 +261,70 @@ class Connect4Game {
 
     shakeBoard() {
         const boardWrapper = document.querySelector('.board-wrapper');
-        boardWrapper.style.transform = 'rotate(1deg) translateX(5px)';
+        boardWrapper.style.transform = 'rotate(1deg) perspective(500px) translateX(10px)';
         setTimeout(() => {
-            boardWrapper.style.transform = 'rotate(1deg) translateX(-5px)';
+            boardWrapper.style.transform = 'rotate(1deg) perspective(500px) translateX(-10px)';
             setTimeout(() => {
-                boardWrapper.style.transform = 'rotate(1deg)';
+                boardWrapper.style.transform = 'rotate(1deg) perspective(500px)';
             }, 100);
         }, 100);
         this.playSound('error');
+    }
+
+    createSparkEffect(colIndex) {
+        const cells = document.querySelectorAll('.cell');
+        const bottomCell = Array.from(cells).find(cell => parseInt(cell.dataset.col) === colIndex && parseInt(cell.dataset.row) === 5);
+        if (!bottomCell) return;
+
+        const rect = bottomCell.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+
+        for (let i = 0; i < 8; i++) {
+            const spark = document.createElement('div');
+            spark.classList.add('spark');
+            document.body.appendChild(spark);
+
+            const angle = (i / 8) * Math.PI * 2;
+            const distance = 50 + Math.random() * 50;
+            const tx = Math.cos(angle) * distance;
+            const ty = Math.sin(angle) * distance;
+
+            spark.style.left = centerX + 'px';
+            spark.style.top = centerY + 'px';
+            spark.style.setProperty('--tx', tx + 'px');
+            spark.style.setProperty('--ty', ty + 'px');
+
+            setTimeout(() => spark.remove(), 800);
+        }
+    }
+
+    createDropParticles(colIndex) {
+        const canvas = document.getElementById('particle-canvas');
+        const ctx = canvas.getContext('2d');
+        const particles = [];
+
+        const cells = document.querySelectorAll('.cell');
+        const targetCell = Array.from(cells).find(cell => parseInt(cell.dataset.col) === colIndex);
+        if (!targetCell) return;
+
+        const rect = targetCell.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+
+        for (let i = 0; i < 20; i++) {
+            particles.push({
+                x: centerX,
+                y: centerY,
+                vx: (Math.random() - 0.5) * 10,
+                vy: (Math.random() - 0.5) * 10 - 5,
+                size: Math.random() * 6 + 2,
+                color: this.currentPlayer === 1 ? '#FFE66D' : '#FF9F43',
+                life: 1
+            });
+        }
+
+        animateParticles(particles);
     }
 
     playSound(type) {
@@ -273,6 +366,14 @@ class Connect4Game {
             gain.gain.linearRampToValueAtTime(0, now + 0.2);
             osc.start(now);
             osc.stop(now + 0.2);
+        } else if (type === 'draw') {
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(200, now);
+            osc.frequency.linearRampToValueAtTime(150, now + 0.3);
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.linearRampToValueAtTime(0, now + 0.3);
+            osc.start(now);
+            osc.stop(now + 0.3);
         }
     }
 
@@ -280,9 +381,11 @@ class Connect4Game {
         // Keyboard support
         document.addEventListener('keydown', (e) => {
             if (e.key === 'z' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
                 this.undo();
             }
             if (e.key === 'r' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
                 this.resetGame();
             }
             // Number keys 1-7 for columns
@@ -296,11 +399,11 @@ class Connect4Game {
 // Initialize Game
 const game = new Connect4Game();
 
-// --- Confetti System (Paper Scraps) ---
-const canvas = document.getElementById('confetti-canvas');
+// --- Particle System ---
+const canvas = document.getElementById('particle-canvas');
 const ctx = canvas.getContext('2d');
-let confettiActive = false;
 let particles = [];
+let animationId = null;
 
 function resizeCanvas() {
     canvas.width = window.innerWidth;
@@ -309,49 +412,108 @@ function resizeCanvas() {
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
-function startConfetti() {
-    confettiActive = true;
+function animateParticles(newParticles) {
+    particles = [...particles, ...newParticles];
+    if (!animationId) {
+        loopParticles();
+    }
+}
+
+function loopParticles() {
+    if (particles.length === 0) {
+        animationId = null;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        return;
+    }
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    particles = particles.filter(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.5; // gravity
+        p.life -= 0.02;
+        
+        if (p.life <= 0) return false;
+
+        ctx.globalAlpha = p.life;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        
+        return true;
+    });
+
+    ctx.globalAlpha = 1;
+    animationId = requestAnimationFrame(loopParticles);
+}
+
+function startCelebrationParticles() {
     particles = [];
-    for(let i=0; i<150; i++) {
+    const colors = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#FF9F43', '#ffffff'];
+    
+    for (let i = 0; i < 200; i++) {
         particles.push({
             x: Math.random() * canvas.width,
             y: Math.random() * canvas.height - canvas.height,
-            w: Math.random() * 10 + 5,
-            h: Math.random() * 10 + 5,
-            color: [`#FF6B6B`, `#4ECDC4`, `#FFE66D`, `#FF9F43`][Math.floor(Math.random()*4)],
-            speed: Math.random() * 3 + 2,
-            angle: Math.random() * 360,
-            spin: Math.random() * 0.2 - 0.1
+            vx: (Math.random() - 0.5) * 8,
+            vy: Math.random() * 5 + 2,
+            size: Math.random() * 8 + 4,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            life: 1,
+            rotation: Math.random() * Math.PI * 2,
+            rotationSpeed: (Math.random() - 0.5) * 0.2
         });
     }
-    requestAnimationFrame(loopConfetti);
+    
+    if (!animationId) {
+        loopCelebration();
+    }
 }
 
-function stopConfetti() {
-    confettiActive = false;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-}
+function loopCelebration() {
+    if (particles.length === 0) {
+        animationId = null;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        return;
+    }
 
-function loopConfetti() {
-    if (!confettiActive) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    particles.forEach(p => {
-        p.y += p.speed;
-        p.angle += p.spin;
+    particles = particles.filter(p => {
+        p.y += p.vy;
+        p.x += p.vx;
+        p.rotation += p.rotationSpeed;
+        p.life -= 0.005;
         
-        if (p.y > canvas.height) p.y = -20;
+        if (p.y > canvas.height) {
+            p.y = -20;
+            p.x = Math.random() * canvas.width;
+        }
+        
+        if (p.life <= 0) return false;
 
         ctx.save();
         ctx.translate(p.x, p.y);
-        ctx.rotate(p.angle);
+        ctx.rotate(p.rotation);
+        ctx.globalAlpha = p.life;
         ctx.fillStyle = p.color;
-        ctx.strokeStyle = '#2d3436';
-        ctx.lineWidth = 1;
-        ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
-        ctx.strokeRect(-p.w/2, -p.h/2, p.w, p.h);
+        ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
         ctx.restore();
+        
+        return true;
     });
 
-    requestAnimationFrame(loopConfetti);
+    ctx.globalAlpha = 1;
+    animationId = requestAnimationFrame(loopCelebration);
+}
+
+function stopParticles() {
+    particles = [];
+    if (animationId) {
+        cancelAnimationFrame(animationId);
+        animationId = null;
+    }
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
