@@ -1,119 +1,369 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Connect 4 - Ultimate Edition</title>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-    <link rel="stylesheet" href="style.css" />
-  </head>
-  <body>
-    <!-- Animated Background -->
-    <div class="bg-animation">
-      <div class="bg-layer bg-layer-1"></div>
-      <div class="bg-layer bg-layer-2"></div>
-      <div class="bg-layer bg-layer-3"></div>
-    </div>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clip Art Connect 4</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #FFF5E4;
+            --board-frame: #FF6B6B;
+            --board-hole: #4ECDC4;
+            --p1-color: #FFE66D; /* Yellow Sticker */
+            --p2-color: #FF9F43; /* Orange Sticker */
+            --outline: #2d3436;
+            --shadow: rgba(0, 0, 0, 0.2);
+            --paper-white: #ffffff;
+        }
 
-    <!-- Main Game Container -->
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(255, 107, 107, 0.1) 0%, transparent 20%),
+                radial-gradient(circle at 90% 80%, rgba(78, 205, 196, 0.1) 0%, transparent 20%);
+            font-family: 'Nunito', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* --- Clip Art Header --- */
+        header {
+            text-align: center;
+            margin: 20px 0;
+            position: relative;
+        }
+
+        h1 {
+            font-family: 'Fredoka One', cursive;
+            font-size: 3.5rem;
+            color: var(--board-frame);
+            text-shadow: 3px 3px 0px var(--outline);
+            margin: 0;
+            letter-spacing: 2px;
+            transform: rotate(-2deg);
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: var(--outline);
+            background: var(--paper-white);
+            padding: 5px 15px;
+            border: 3px solid var(--outline);
+            border-radius: 20px;
+            display: inline-block;
+            box-shadow: 4px 4px 0px var(--shadow);
+            margin-top: 10px;
+            transform: rotate(1deg);
+        }
+
+        /* --- Game Container --- */
+        .game-container {
+            display: flex;
+            gap: 30px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        /* --- The Board --- */
+        .board-wrapper {
+            position: relative;
+            padding: 15px;
+            background: var(--board-frame);
+            border: 4px solid var(--outline);
+            border-radius: 20px;
+            box-shadow: 8px 8px 0px var(--shadow);
+            transform: rotate(1deg);
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 10px;
+            background-color: var(--board-frame);
+            padding: 10px;
+            border-radius: 15px;
+        }
+
+        .cell {
+            width: 60px;
+            height: 60px;
+            background-color: var(--bg-color); /* Shows through hole */
+            border-radius: 50%;
+            border: 4px solid var(--outline);
+            box-shadow: inset 4px 4px 0px rgba(0,0,0,0.1);
+            position: relative;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .cell:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* --- The Pieces (Stickers) --- */
+        .piece {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 4px solid var(--outline);
+            position: absolute;
+            top: 0;
+            left: 0;
+            animation: dropIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            box-shadow: 4px 4px 0px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .piece.p1 {
+            background-color: var(--p1-color);
+        }
+
+        .piece.p2 {
+            background-color: var(--p2-color);
+        }
+
+        /* Winner Star Sticker */
+        .piece.winner::after {
+            content: '★';
+            font-size: 30px;
+            color: white;
+            text-shadow: 2px 2px 0 var(--outline);
+            animation: popStar 0.4s ease-out forwards;
+        }
+
+        @keyframes dropIn {
+            0% { transform: translateY(-400px) rotate(0deg); opacity: 0; }
+            60% { transform: translateY(20px) rotate(10deg); opacity: 1; }
+            80% { transform: translateY(-10px) rotate(-5deg); }
+            100% { transform: translateY(0) rotate(0deg); }
+        }
+
+        @keyframes popStar {
+            0% { transform: scale(0); }
+            80% { transform: scale(1.4); }
+            100% { transform: scale(1); }
+        }
+
+        /* --- Sidebar UI --- */
+        .sidebar {
+            background: var(--paper-white);
+            border: 4px solid var(--outline);
+            border-radius: 20px;
+            padding: 20px;
+            width: 250px;
+            box-shadow: 8px 8px 0px var(--shadow);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .status-card {
+            text-align: center;
+            border: 3px dashed var(--outline);
+            border-radius: 15px;
+            padding: 15px;
+            background: #f0f0f0;
+        }
+
+        .turn-indicator {
+            font-family: 'Fredoka One', cursive;
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            color: var(--outline);
+        }
+
+        .current-player-token {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 3px solid var(--outline);
+            margin: 0 auto;
+            box-shadow: 3px 3px 0 rgba(0,0,0,0.2);
+        }
+
+        .score-board {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .score-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .mini-token {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid var(--outline);
+        }
+
+        /* --- Buttons --- */
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        button {
+            font-family: 'Fredoka One', cursive;
+            font-size: 1.1rem;
+            padding: 12px;
+            border: 3px solid var(--outline);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.1s;
+            position: relative;
+            top: 0;
+            box-shadow: 4px 4px 0px var(--outline);
+        }
+
+        button:active {
+            top: 4px;
+            box-shadow: 0px 0px 0px var(--outline);
+        }
+
+        .btn-reset { background: #FF6B6B; color: white; }
+        .btn-undo { background: #4ECDC4; color: white; }
+        .btn-mode { background: #FFE66D; color: var(--outline); }
+
+        /* --- Modal --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            backdrop-filter: blur(2px);
+        }
+
+        .modal {
+            background: var(--paper-white);
+            border: 5px solid var(--outline);
+            border-radius: 25px;
+            padding: 30px;
+            text-align: center;
+            box-shadow: 15px 15px 0px var(--shadow);
+            animation: popModal 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            max-width: 90%;
+        }
+
+        @keyframes popModal {
+            0% { transform: scale(0.5) rotate(-10deg); opacity: 0; }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+
+        .modal h2 {
+            font-family: 'Fredoka One', cursive;
+            font-size: 2.5rem;
+            color: var(--board-frame);
+            text-shadow: 2px 2px 0 var(--outline);
+            margin: 0 0 20px 0;
+        }
+
+        .modal p {
+            font-size: 1.2rem;
+            margin-bottom: 25px;
+            color: var(--outline);
+        }
+
+        /* Confetti Canvas */
+        #confetti-canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 99;
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .cell { width: 40px; height: 40px; }
+            h1 { font-size: 2.5rem; }
+            .game-container { flex-direction: column; align-items: center; }
+            .sidebar { width: 100%; flex-direction: row; flex-wrap: wrap; justify-content: center; }
+            .btn-group { flex-direction: row; }
+            button { flex: 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="confetti-canvas"></canvas>
+
+    <header>
+        <h1>CONNECT 4</h1>
+        <div class="subtitle">Sticker Edition!</div>
+    </header>
+
     <div class="game-container">
-      <!-- Header -->
-      <header class="game-header">
-        <h1 class="game-title">
-          <span class="title-text">CONNECT</span>
-          <span class="title-accent">FOUR</span>
-        </h1>
-        <div class="subtitle">ULTIMATE EDITION</div>
-      </header>
-
-      <!-- Scoreboard -->
-      <div class="scoreboard">
-        <div class="player-score player-1-score" id="player1ScoreBox">
-          <div class="player-token token-p1"></div>
-          <div class="score-info">
-            <span class="player-name">PLAYER 1</span>
-            <span class="score-value" id="player1Score">0</span>
-          </div>
+        <!-- Game Board -->
+        <div class="board-wrapper">
+            <div class="board" id="board">
+                <!-- Cells generated by JS -->
+            </div>
         </div>
-        
-        <div class="vs-badge">VS</div>
-        
-        <div class="player-score player-2-score" id="player2ScoreBox">
-          <div class="player-token token-p2"></div>
-          <div class="score-info">
-            <span class="player-name">PLAYER 2</span>
-            <span class="score-value" id="player2Score">0</span>
-          </div>
+
+        <!-- Sidebar Controls -->
+        <div class="sidebar">
+            <div class="status-card">
+                <div class="turn-indicator" id="turn-text">Player 1's Turn</div>
+                <div class="current-player-token" id="turn-token" style="background: var(--p1-color);"></div>
+            </div>
+
+            <div class="score-board">
+                <div class="score-item">
+                    <div class="mini-token" style="background: var(--p1-color);"></div>
+                    <span>P1: <span id="score-p1">0</span></span>
+                </div>
+                <div class="score-item">
+                    <div class="mini-token" style="background: var(--p2-color);"></div>
+                    <span>P2: <span id="score-p2">0</span></span>
+                </div>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn-undo" onclick="game.undo()">↩ Undo</button>
+                <button class="btn-reset" onclick="game.resetGame()">🔄 New Game</button>
+            </div>
+            
+            <div style="font-size: 0.8rem; text-align: center; color: #666; margin-top: 10px;">
+                Click column to drop!<br>First to 4 wins.
+            </div>
         </div>
-      </div>
-
-      <!-- Turn Indicator -->
-      <div class="turn-indicator" id="turnIndicator">
-        <div class="turn-arrow"></div>
-        <span class="turn-text">PLAYER <span id="currentPlayerNum">1</span>'S TURN</span>
-      </div>
-
-      <!-- Game Board -->
-      <div class="board-wrapper">
-        <div class="board-frame">
-          <div class="board-top-bar"></div>
-          <div class="column-indicators">
-            <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span>
-          </div>
-          <div class="container" role="grid" aria-label="Connect 4 Game Board"></div>
-          <div class="board-bottom-bar"></div>
-        </div>
-      </div>
-
-      <!-- Controls -->
-      <div class="controls">
-        <button class="control-btn" id="undoBtn" aria-label="Undo last move">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M3 10h10a5 5 0 0 1 5 5v2M3 10l6-6M3 10l6 6"/>
-          </svg>
-          <span>UNDO</span>
-        </button>
-        <button class="control-btn" id="resetBtn" aria-label="Reset game">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M23 4v6h-6M1 20v-6h6"/>
-            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-          </svg>
-          <span>RESET</span>
-        </button>
-        <button class="control-btn primary" id="newGameBtn" aria-label="Start new game">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"/>
-            <polygon points="10 8 16 12 10 16 10 8" fill="currentColor"/>
-          </svg>
-          <span>NEW GAME</span>
-        </button>
-      </div>
-
-      <!-- Move History -->
-      <div class="move-history">
-        <h3>MOVE HISTORY</h3>
-        <div class="history-list" id="historyList"></div>
-      </div>
     </div>
 
-    <!-- Start/End Modal -->
-    <div class="modal-overlay" id="modalOverlay">
-      <div class="modal-content">
-        <div class="modal-icon" id="modalIcon"></div>
-        <h2 class="modal-title" id="modalTitle">CONNECT FOUR</h2>
-        <p class="modal-subtitle" id="modalSubtitle">Ready to play?</p>
-        <button class="modal-btn" id="startBtn">
-          <span class="btn-text">START GAME</span>
-          <span class="btn-shine"></span>
-        </button>
-      </div>
+    <!-- Win Modal -->
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="modal">
+            <h2 id="modal-title">PLAYER 1 WINS!</h2>
+            <p id="modal-message">Awesome job collecting those stickers!</p>
+            <button class="btn-reset" onclick="game.resetGame()">Play Again 🎮</button>
+        </div>
     </div>
-
-    <!-- VFX Containers -->
-    <div id="particles"></div>
-    <div id="confetti"></div>
-    <div class="screen-flash" id="screenFlash"></div>
 
     <script src="script.js"></script>
-  </body>
+</body>
 </html>
